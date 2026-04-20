@@ -94,7 +94,7 @@ Answer:
 # Gradio App
 with gr.Blocks() as demo:
 
-    gr.Markdown("## 📄 PDF RAG Assistant by zeyneppinarsoy")
+    gr.Markdown("## 📄 Welcome to DOCY AI ")
     gr.Markdown("### Upload your PDF and ask questions about it.")
 
     pdf_file = gr.File(file_types=[".pdf"], label="Upload PDF")
