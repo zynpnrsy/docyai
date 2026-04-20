@@ -1,3 +1,7 @@
+
+https://huggingface.co/spaces/zeyneppinarsoy/docyai/tree/main
+
+
 An AI-powered PDF assistant that transforms static documents into an interactive learning experience using Retrieval-Augmented Generation (RAG).
 The system allows users to query PDF documents, generate flashcards, create multiple-choice quizzes, and evaluate answer reliability — all based strictly on the uploaded content.
 
