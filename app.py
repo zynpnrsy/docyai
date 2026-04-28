@@ -8,6 +8,7 @@ from pypdf import PdfReader
 from sentence_transformers import SentenceTransformer
 from groq import Groq
 from dotenv import load_dotenv
+from flashcard_ui import get_flashcard_css, render_flashcard_html, render_empty_card
 
 load_dotenv()
 
@@ -127,7 +128,7 @@ def generate_flashcards(context):
 
 
 # Gradio App
-with gr.Blocks(css=".card-box { border: 2px solid #3b82f6; border-radius: 15px; padding: 30px; text-align: center; min-height: 200px; display: flex; align-items: center; justify-content: center; background-color: #f8fafc; cursor: pointer; } .answer-text { color: #059669; font-weight: bold; margin-top: 20px; border-top: 1px solid #e2e8f0; padding-top: 10px; }") as demo:
+with gr.Blocks(css=get_flashcard_css()) as demo:
 
     gr.Markdown("## 📄 Welcome to DOCY AI ")
     gr.Markdown("### Upload your PDF to Chat or Study with Flashcards.")
@@ -150,12 +151,11 @@ with gr.Blocks(css=".card-box { border: 2px solid #3b82f6; border-radius: 15px; 
                 clear_btn = gr.Button("🆕 New Question")
 
         with gr.Tab("🗂️ Flashcard Study"):
-            with gr.Column(visible=True) as flashcard_ui:
+            with gr.Column(visible=True) as flashcard_col:
                 gen_btn = gr.Button("✨ Generate Study Cards", variant="secondary")
-                
-                with gr.Column(elem_classes="card-box") as card_container:
-                    card_display = gr.Markdown("### Click 'Generate' to create cards!")
-                
+
+                card_display = gr.HTML(value=render_empty_card())
+
                 with gr.Row():
                     prev_btn = gr.Button("⬅️ Previous")
                     flip_btn = gr.Button("🔄 Flip / Show Answer")
@@ -188,50 +188,58 @@ with gr.Blocks(css=".card-box { border: 2px solid #3b82f6; border-radius: 15px; 
 
     # ---------------- Flashcard Logic ----------------
     def start_flashcards(state):
-        if state is None: return [], 0, False, "### ❌ Please upload a PDF first!"
+        if state is None:
+            return [], 0, False, render_empty_card()
         chunks, _ = state
         # Use first 5 chunks for general context
         context = "\n\n".join(chunks[:5])
         cards = generate_flashcards(context)
-        
-        first_q = f"## Question 1:\n\n{cards[0]['question']}"
-        return cards, 0, False, first_q
-
-    def update_card_ui(cards, index, flipped):
-        if not cards: return "### Click 'Generate' to create cards!"
-        q = cards[index]['question']
-        a = cards[index]['answer']
-        
-        display = f"## Question {index + 1}:\n\n{q}"
-        if flipped:
-            display += f"\n\n<div class='answer-text'>✅ Answer:\n\n{a}</div>"
-        return display
+        html = render_flashcard_html(
+            cards[0]["question"], cards[0]["answer"], 1, len(cards), False
+        )
+        return cards, 0, False, html
 
     def handle_gen(state):
-        cards, idx, flipped, display = start_flashcards(state)
-        return {"cards": cards, "index": idx, "flipped": flipped}, display
+        cards, idx, flipped, html = start_flashcards(state)
+        return {"cards": cards, "index": idx, "flipped": flipped}, html
 
     def handle_next(f_state):
         cards = f_state["cards"]
-        if not cards: return f_state, "### Click 'Generate' to create cards!"
+        if not cards:
+            return f_state, render_empty_card()
         new_idx = (f_state["index"] + 1) % len(cards)
         new_state = {"cards": cards, "index": new_idx, "flipped": False}
-        return new_state, update_card_ui(cards, new_idx, False)
+        html = render_flashcard_html(
+            cards[new_idx]["question"], cards[new_idx]["answer"],
+            new_idx + 1, len(cards), False
+        )
+        return new_state, html
 
     def handle_prev(f_state):
         cards = f_state["cards"]
-        if not cards: return f_state, "### Click 'Generate' to create cards!"
+        if not cards:
+            return f_state, render_empty_card()
         new_idx = (f_state["index"] - 1) % len(cards)
         new_state = {"cards": cards, "index": new_idx, "flipped": False}
-        return new_state, update_card_ui(cards, new_idx, False)
+        html = render_flashcard_html(
+            cards[new_idx]["question"], cards[new_idx]["answer"],
+            new_idx + 1, len(cards), False
+        )
+        return new_state, html
 
     def handle_flip(f_state):
         cards = f_state["cards"]
-        if not cards: return f_state, "### Click 'Generate' to create cards!"
+        if not cards:
+            return f_state, render_empty_card()
         new_flipped = not f_state["flipped"]
         new_state = f_state.copy()
         new_state["flipped"] = new_flipped
-        return new_state, update_card_ui(cards, f_state["index"], new_flipped)
+        idx = f_state["index"]
+        html = render_flashcard_html(
+            cards[idx]["question"], cards[idx]["answer"],
+            idx + 1, len(cards), new_flipped
+        )
+        return new_state, html
 
     gen_btn.click(handle_gen, inputs=[state], outputs=[flash_state, card_display])
     next_btn.click(handle_next, inputs=[flash_state], outputs=[flash_state, card_display])
