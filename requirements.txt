@@ -6,4 +6,6 @@ sentence-transformers
 pypdf
 groq
 ollama
-python-dotenv 
+python-dotenv
+scikit-learn
+tf-keras

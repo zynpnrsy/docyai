@@ -9,6 +9,7 @@ from sentence_transformers import SentenceTransformer
 from groq import Groq
 from dotenv import load_dotenv
 from flashcard_ui import get_flashcard_css, render_flashcard_html, render_empty_card
+from confidence_scorer import calculate_confidence
 
 load_dotenv()
 
@@ -144,6 +145,7 @@ with gr.Blocks(css=get_flashcard_css()) as demo:
         with gr.Tab("🔍 Chat Assistant"):
             question = gr.Textbox(label="Ask a question", lines=3)
             answer = gr.Textbox(label="Answer", lines=8)
+            confidence_display = gr.Textbox(label="Confidence Score", interactive=False, lines=1)
 
             with gr.Row():
                 run_btn = gr.Button("▶️ Run", variant="primary")
@@ -176,15 +178,28 @@ with gr.Blocks(css=get_flashcard_css()) as demo:
 
     # ---------------- Question Logic ----------------
     def ask_question(question, state):
-        if state is None: return "Please upload a PDF first."
+        if state is None:
+            return "Please upload a PDF first.", ""
         chunks, index = state
         retrieved_chunks = retrieve(question, chunks, index)
         context = "\n\n".join(retrieved_chunks)
-        return ask_llm(context, question)
+        answer_text = ask_llm(context, question)
+        
+        result = calculate_confidence(
+            question, retrieved_chunks, embedding_model,
+            answer=answer_text, client=client, model_name="llama-3.1-8b-instant"
+        )
+        score = result["score"]
+        
+        confidence_text = f"Confidence Score: {score}/100"
+        if result["llm_score"] is not None:
+            confidence_text += f"  (Embedding: {result['embedding_score']}/100 | LLM: {result['llm_score']}/100)"
+            
+        return answer_text, confidence_text
 
-    run_event = run_btn.click(ask_question, inputs=[question, state], outputs=answer)
+    run_event = run_btn.click(ask_question, inputs=[question, state], outputs=[answer, confidence_display])
     stop_btn.click(None, None, None, cancels=[run_event])
-    clear_btn.click(lambda: ("", ""), outputs=[question, answer])
+    clear_btn.click(lambda: ("", "", ""), outputs=[question, answer, confidence_display])
 
     # ---------------- Flashcard Logic ----------------
     def start_flashcards(state):
