@@ -10,6 +10,7 @@ from groq import Groq
 from dotenv import load_dotenv
 from flashcard_ui import get_flashcard_css, render_flashcard_html, render_empty_card
 from confidence_scorer import calculate_confidence
+from feedback import save_feedback
 
 load_dotenv()
 
@@ -152,6 +153,18 @@ with gr.Blocks(css=get_flashcard_css()) as demo:
                 stop_btn = gr.Button("⛔ Stop Thinking")
                 clear_btn = gr.Button("🆕 New Question")
 
+            gr.Markdown("---")
+            gr.Markdown("#### ⭐ Rate this answer")
+            with gr.Row():
+                rating = gr.Radio(
+                    choices=[("⭐ 1", 1), ("⭐⭐ 2", 2), ("⭐⭐⭐ 3", 3), ("⭐⭐⭐⭐ 4", 4), ("⭐⭐⭐⭐⭐ 5", 5)],
+                    label="How helpful was this answer?",
+                    type="value",
+                    interactive=True,
+                )
+                submit_rating_btn = gr.Button("Submit Rating", variant="secondary")
+            rating_status = gr.Markdown("")
+
         with gr.Tab("🗂️ Flashcard Study"):
             with gr.Column(visible=True) as flashcard_col:
                 gen_btn = gr.Button("✨ Generate Study Cards", variant="secondary")
@@ -197,9 +210,18 @@ with gr.Blocks(css=get_flashcard_css()) as demo:
             
         return answer_text, confidence_text
 
+    def handle_submit_rating(question_val, answer_val, rating_val):
+        if not answer_val:
+            return "Please ask a question first."
+        if rating_val is None:
+            return "Please select a star rating before submitting."
+        _, msg = save_feedback(question_val, answer_val, int(rating_val))
+        return msg
+
     run_event = run_btn.click(ask_question, inputs=[question, state], outputs=[answer, confidence_display])
     stop_btn.click(None, None, None, cancels=[run_event])
-    clear_btn.click(lambda: ("", "", ""), outputs=[question, answer, confidence_display])
+    clear_btn.click(lambda: ("", "", "", None, ""), outputs=[question, answer, confidence_display, rating, rating_status])
+    submit_rating_btn.click(handle_submit_rating, inputs=[question, answer, rating], outputs=[rating_status])
 
     # ---------------- Flashcard Logic ----------------
     def start_flashcards(state):

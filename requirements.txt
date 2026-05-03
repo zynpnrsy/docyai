@@ -9,3 +9,5 @@ ollama
 python-dotenv
 scikit-learn
 tf-keras
+gspread
+google-auth
