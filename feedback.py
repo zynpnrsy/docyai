@@ -10,6 +10,7 @@ Setup:
        GOOGLE_SHEET_NAME        (default: DocAI Feedback)
 """
 
+import json
 import os
 from datetime import datetime
 
@@ -29,16 +30,14 @@ def _get_sheet():
     if _sheet is not None:
         return _sheet
 
-    creds_path = os.environ.get("GOOGLE_CREDENTIALS_FILE", "credentials.json")
+    creds_raw = os.environ.get("GOOGLE_CREDENTIALS")
     sheet_name = os.environ.get("GOOGLE_SHEET_NAME", "DocAI Feedback")
 
-    if not os.path.exists(creds_path):
-        raise FileNotFoundError(
-            f"Google credentials file not found: '{creds_path}'. "
-            "Set GOOGLE_CREDENTIALS_FILE env var or place credentials.json in the project root."
-        )
+    if not creds_raw:
+        raise ValueError("GOOGLE_CREDENTIALS environment variable is not set.")
 
-    creds = Credentials.from_service_account_file(creds_path, scopes=SCOPES)
+    creds_info = json.loads(creds_raw)
+    creds = Credentials.from_service_account_info(creds_info, scopes=SCOPES)
     client = gspread.authorize(creds)
     _sheet = client.open(sheet_name).sheet1
 
