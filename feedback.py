@@ -30,11 +30,14 @@ def _get_sheet():
     if _sheet is not None:
         return _sheet
 
-    creds_raw = os.environ.get("GOOGLE_CREDENTIALS")
     sheet_name = os.environ.get("GOOGLE_SHEET_NAME", "DocAI Feedback")
 
+    # Support both a raw JSON string and a file path
+    creds_raw = os.environ.get("GOOGLE_CREDENTIALS")
     if not creds_raw:
-        raise ValueError("GOOGLE_CREDENTIALS environment variable is not set.")
+        creds_file = os.environ.get("GOOGLE_CREDENTIALS_FILE", "credentials.json")
+        with open(creds_file, "r", encoding="utf-8") as f:
+            creds_raw = f.read()
 
     creds_info = json.loads(creds_raw)
     creds = Credentials.from_service_account_info(creds_info, scopes=SCOPES)

@@ -5,6 +5,8 @@ __pycache__/
 .DS_Store
 .claude/
 *.backup
+*.log
 * 2.py
 docx.md
 credentials.json
+CLAUDE.md

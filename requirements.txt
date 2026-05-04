@@ -1,13 +1,9 @@
 gradio
-langchain
-langchain-community
-faiss-cpu
+chromadb
 sentence-transformers
 pypdf
 groq
-ollama
 python-dotenv
 scikit-learn
-tf-keras
 gspread
 google-auth
