@@ -33,10 +33,12 @@ def get_flashcard_css() -> str:
     width: 100%;
     height: 100%;
     transform-style: preserve-3d;
+    -webkit-transform-style: preserve-3d;
     transition: transform 0.65s cubic-bezier(0.4, 0.2, 0.2, 1);
     border-radius: 18px;
-    /* subtle lift shadow */
-    filter: drop-shadow(0 8px 32px rgba(0,0,0,0.55));
+    /* NOTE: do not set `filter` / `clip-path` / `mask` here — they flatten the
+       3D context and break the flip, leaving the front face mirrored. Shadow
+       is applied per-face below instead. */
 }
 
 /* Flip state: back face visible */
@@ -59,6 +61,7 @@ def get_flashcard_css() -> str:
     box-sizing: border-box;
     background: #1e293b;
     border: 1px solid rgba(99,120,160,0.25);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.55);
     transition: border-color 0.3s;
 }
 
@@ -203,27 +206,40 @@ def render_flashcard_html(
     q_safe = _esc(question)
     a_safe = _esc(answer)
 
+    pct = round((index / total) * 100) if total else 0
     return f"""
 <div class="fc-scene">
-  <div class="fc-card">
-    <div class="fc-inner {flip_class}">
+  <div style="display:flex;flex-direction:column;align-items:center;gap:14px">
+    <div class="fc-card">
+      <div class="fc-inner {flip_class}">
 
-      <!-- FRONT FACE -->
-      <div class="fc-face fc-front">
-        <span class="fc-badge">{badge}</span>
-        <p class="fc-label">Question</p>
-        <p class="fc-question">{q_safe}</p>
-        <span class="fc-hint">click flip to reveal answer</span>
+        <!-- FRONT FACE -->
+        <div class="fc-face fc-front">
+          <span class="fc-badge">{badge}</span>
+          <p class="fc-label">Question</p>
+          <p class="fc-question">{q_safe}</p>
+          <span class="fc-hint">click flip to reveal answer</span>
+        </div>
+
+        <!-- BACK FACE -->
+        <div class="fc-face fc-back">
+          <span class="fc-badge">{badge}</span>
+          <p class="fc-answer-label">Answer</p>
+          <div class="fc-divider"></div>
+          <p class="fc-answer">{a_safe}</p>
+        </div>
+
       </div>
-
-      <!-- BACK FACE -->
-      <div class="fc-face fc-back">
-        <span class="fc-badge">{badge}</span>
-        <p class="fc-answer-label">Answer</p>
-        <div class="fc-divider"></div>
-        <p class="fc-answer">{a_safe}</p>
+    </div>
+    <div style="width:500px">
+      <div style="height:6px;background:#0f172a;border-radius:999px;overflow:hidden">
+        <div style="height:100%;width:{pct}%;background:linear-gradient(90deg,#4ade80,#22d3ee);
+                    transition:width 0.4s ease"></div>
       </div>
-
+      <p style="margin:6px 0 0 0;font-family:'DM Sans',sans-serif;font-size:11px;
+                color:#64748b;letter-spacing:.08em;text-align:center">
+        Card {index} of {total}
+      </p>
     </div>
   </div>
 </div>
@@ -236,6 +252,48 @@ def render_empty_card() -> str:
 <div class="fc-scene">
   <div class="fc-empty">
     ✨ Click <strong>Generate Study Cards</strong> to get started!
+  </div>
+</div>
+"""
+
+
+def render_flashcard_summary(cards, known_idx, unknown_idx) -> str:
+    """Render a study summary after the deck has been reviewed."""
+    total = len(cards)
+    n_known = len(known_idx)
+    n_unknown = len(unknown_idx)
+    pct = round(n_known / total * 100) if total else 0
+
+    def _esc(s: str) -> str:
+        return (s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;"))
+
+    weak_html = ""
+    if unknown_idx:
+        items = "".join(
+            f"<li style='margin:6px 0;color:#cbd5e1'>"
+            f"<span style='color:#f87171;font-weight:600'>•</span> "
+            f"{_esc(cards[i]['question'])}</li>"
+            for i in unknown_idx
+        )
+        weak_html = (
+            "<p style='font-family:DM Sans,sans-serif;font-size:11px;letter-spacing:.12em;"
+            "text-transform:uppercase;color:#f87171;margin:18px 0 8px 0'>Review these</p>"
+            f"<ul style='margin:0;padding-left:18px'>{items}</ul>"
+        )
+
+    return f"""
+<div class="fc-scene">
+  <div style="width:520px;background:#1e293b;border:1px solid rgba(99,120,160,0.25);
+              border-radius:18px;padding:28px 32px;box-shadow:0 8px 32px rgba(0,0,0,0.55);
+              font-family:'DM Sans',sans-serif;color:#f1f5f9">
+    <p style='font-family:Syne,sans-serif;font-size:22px;font-weight:700;margin:0 0 6px 0'>
+      Study Summary</p>
+    <p style='margin:0;font-size:14px;color:#94a3b8'>You knew <strong style='color:#4ade80'>{n_known}</strong>
+       of <strong>{total}</strong> ({pct}%)</p>
+    <div style='margin-top:14px;height:8px;background:#0f172a;border-radius:999px;overflow:hidden'>
+      <div style='height:100%;width:{pct}%;background:linear-gradient(90deg,#4ade80,#22d3ee)'></div>
+    </div>
+    {weak_html}
   </div>
 </div>
 """

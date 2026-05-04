@@ -9,4 +9,5 @@ __pycache__/
 * 2.py
 docx.md
 credentials.json
+feedback_local.csv
 CLAUDE.md

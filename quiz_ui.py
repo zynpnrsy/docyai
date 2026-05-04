@@ -337,12 +337,17 @@ def render_quiz_header_html(question: str, index: int, total: int) -> str:
     below this header.
     """
     badge = f"{index} / {total}"
+    pct = round(((index - 1) / total) * 100) if total else 0
     return f"""
 <div class="qz-scene">
   <div class="qz-card">
     <div class="qz-header">
       <p class="qz-label">Question</p>
       <span class="qz-badge">{badge}</span>
+    </div>
+    <div style="height:6px;background:#0f172a;border-radius:999px;overflow:hidden;margin-bottom:18px">
+      <div style="height:100%;width:{pct}%;background:linear-gradient(90deg,#4ade80,#22d3ee);
+                  transition:width 0.4s ease"></div>
     </div>
     <p class="qz-question">{_esc(question)}</p>
   </div>
@@ -482,10 +487,21 @@ def render_quiz_question_html(
 """
 
 
+def _format_seconds(s: float) -> str:
+    if s is None:
+        return "—"
+    if s < 60:
+        return f"{s:.1f}s"
+    m = int(s // 60)
+    sec = int(round(s - m * 60))
+    return f"{m}m {sec}s"
+
+
 def render_quiz_result_html(
     score: int,
     total: int,
     questions_with_results: List[Dict[str, Any]],
+    total_seconds: Optional[float] = None,
 ) -> str:
     """
     Render the final result screen.
@@ -526,6 +542,13 @@ def render_quiz_result_html(
                 f"<p class='qz-summary-exp'>{_esc(r['explanation'])}</p>"
             )
 
+        time_html = ""
+        if r.get("time_seconds") is not None:
+            time_html = (
+                f"<p class='qz-summary-detail' style='color:#64748b'>"
+                f"⏱ {_format_seconds(r['time_seconds'])}</p>"
+            )
+
         items_html_parts.append(
             f"""
       <div class="qz-summary-item {wrap_cls}">
@@ -534,11 +557,20 @@ def render_quiz_result_html(
           <p class="qz-summary-q">Q{i+1}. {_esc(r['question'])}</p>
           <p class="qz-summary-detail">Your answer: {sel_label}</p>
           <p class="qz-summary-detail">Correct: {cor_label}</p>
+          {time_html}
           {exp_html}
         </div>
       </div>"""
         )
     items_html = "".join(items_html_parts)
+
+    time_summary = ""
+    if total_seconds is not None and total_seconds > 0:
+        avg = total_seconds / total if total else 0
+        time_summary = (
+            f"<p class='qz-score-pct'>⏱ {_format_seconds(total_seconds)} total · "
+            f"{_format_seconds(avg)} avg per question</p>"
+        )
 
     return f"""
 <div class="qz-scene">
@@ -547,6 +579,7 @@ def render_quiz_result_html(
       <p class="qz-score-label">Final Score</p>
       <p class="qz-score-num">{score} / {total}</p>
       <p class="qz-score-pct">{pct}% correct</p>
+      {time_summary}
     </div>
     <div class="qz-summary">{items_html}
     </div>
