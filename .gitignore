@@ -1,4 +1,10 @@
 .env
+venv/
 __pycache__/
+*.pyc
+.DS_Store
+.claude/
+*.backup
+* 2.py
 docx.md
 credentials.json
